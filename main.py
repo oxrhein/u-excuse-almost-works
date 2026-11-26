@@ -41,8 +41,18 @@ def main() -> None:
     output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, "entry.txt")
+    expected = build_line() + "\n"
     with open(path, "w", encoding="utf-8") as handle:
-        handle.write(build_line() + "\n")
+        handle.write(expected)
+    # Verify what actually landed on disk: read it back and compare
+    # byte-for-byte, so a truncated write, BOM or stray carriage return
+    # is caught here instead of failing the gate at grading time.
+    with open(path, "rb") as handle:
+        raw = handle.read()
+    if raw != expected.encode("utf-8"):
+        raise ValueError("entry.txt on disk does not match the entry line")
+    if raw.startswith(b"\xef\xbb\xbf") or b"\r" in raw:
+        raise ValueError("entry.txt must not contain a BOM or carriage return")
 
 
 if __name__ == "__main__":
